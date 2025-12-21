@@ -1,0 +1,61 @@
+# Transactional Boundary Design (V1)
+This document defines the transactional boundaries for order placement and inventory reservation.
+It ensures data consistency, prevents overselling, and keeps order states reliable.
+## 1. Objective
+To define what operations must be executed atomically per order and what can safely occur outside the transaction.
+
+---
+
+## 2. Operations That Must Be Atomic
+
+For each order placement, the following steps occur within a single transaction:
+
+1. **Check Inventory Availability**
+- Verify that `available_quantity` for each product in the order is sufficient.
+
+2. **Reserve Inventory**
+- Deduct the requested quantity from `available_quantity`.
+
+3. **Update Order Status**
+- Change order status from `CREATED` → `CONFIRMED`.
+
+**Business Rule:**
+If any step fails, the **entire operation is rolled back** and the order moves to `FAILED`.
+
+---
+
+## 3. Operations Outside the Transaction
+
+- Payment processing (future phase)
+- Email/SMS notifications
+- Reporting / analytics writes
+
+> These operations can fail independently without impacting core order consistency.
+
+---
+
+## 4. Conceptual Transaction Flow
+Start Order Placement
+|
+Check Inventory
+|->Not Enough(Fail Order(atomic rollback)
+Update Order Status->Confirmed
+|
+Commit Transaction
+
+## 5. Design Decisions
+
+- Single database transaction per order placement (V1)
+- Transaction is limited to critical operations to minimize contention
+- Ensures that **inventory cannot be oversold**
+- Avoids coupling with external or non-critical services
+- Isolation level: default (to be optimized when adding concurrency/thread-safety)
+
+---
+
+## 6. Future Considerations
+
+- When introducing async order processing, the transaction may only cover inventory reservation, and order confirmation can occur asynchronously.
+- Compensation logic will handle failures outside the transaction scope (e.g., payment failures after confirmation).
+- Optimistic/pessimistic locking strategies can be applied to inventory to handle high concurrency.
+

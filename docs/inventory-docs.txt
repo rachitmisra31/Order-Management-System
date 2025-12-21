@@ -1,0 +1,69 @@
+# Inventory Reservation Design (V1)
+
+This document describes how inventory is reserved during order placement
+and defines the invariants that must be preserved.
+
+
+## Responsibility
+
+The Inventory module is responsible for:
+- Maintaining the current available stock for each product
+- Ensuring stock is never oversold
+- Acting as the single source of truth for sellable quantity
+## Reservation vs Deduction
+
+Inventory reservation means temporarily blocking stock for an order.
+In V1 of the system, reservation is implemented as a direct reduction
+of available_quantity during order placement.
+Why:
+
+This prepares the ground for future evolution without lying about V1 simplicity.
+
+## Invariants
+
+- available_quantity must never be negative
+- Reservation must be atomic per order
+- Partial reservation is not allowed
+Why:
+
+Invariants are what drive:
+
+
+
+
+## Reservation Flow (V1)
+
+1. Order is created in CREATED state
+2. Inventory is checked for sufficient quantity
+3. If sufficient:
+   - available_quantity is reduced
+   - Order moves to CONFIRMED
+4. If insufficient:
+   - Inventory remains unchanged
+   - Order moves to FAILED
+## Failure Scenarios
+
+- Insufficient inventory:
+  - Reservation is rejected
+  - Order is marked as FAILED
+
+- Unexpected errors:
+  - Inventory may need restoration
+  - Compensation logic is intentionally deferred to later versions
+
+## Design Decisions
+
+- Inventory is modeled as a separate entity from Product to isolate
+  high-contention updates.
+- No reserved_quantity field is introduced in V1 to avoid speculative design.
+- Reservation logic is tightly coupled with order confirmation in V1.
+
+
+️⃣Future Evolution (Optional but Powerful)
+## Future Evolution
+
+- Introduce explicit reservation tracking for async order processing
+- Support inventory release on order cancellation or failure
+- Decouple reservation from order confirmation
+
+
